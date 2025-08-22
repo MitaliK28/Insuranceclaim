@@ -261,7 +261,9 @@
                         <div class="name" id="topUserName">User</div>
                         <div class="sub"><span id="topRoles">ROLE</span> · <span id="topEmail">user@example.com</span></div>
                     </div>
-                    <i class="bi bi-person-circle fs-5 ms-1"></i>
+                    <button id="logoutBtn" class="btn btn-outline-danger btn-sm ms-2" title="Logout">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </button>
                 </div>
             </header>
         }
@@ -297,6 +299,16 @@
                 document.getElementById('topRoles').textContent    = roles.join(', ') || 'USER';
                 document.getElementById('topEmail').textContent    = email || '—';
                 document.getElementById('avatar').textContent      = (name.trim()[0] || 'U').toUpperCase();
+
+                // Logout handler
+                const LOGOUT_URL = '/AuthenticationUI/LoginRegister';
+                const logoutBtn = document.getElementById('logoutBtn');
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', function(){
+                        try { localStorage.removeItem('userData'); } catch {}
+                        window.location.href = LOGOUT_URL;
+                    });
+                }
 
                 // Role gating for sidebar links
                 const roleMap = {
