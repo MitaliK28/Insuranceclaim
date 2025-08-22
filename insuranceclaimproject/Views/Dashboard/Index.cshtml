@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Dashboard";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
@@ -84,7 +84,7 @@
             const allowed = new Set(); roles.forEach(r => (roleMap[r]||[]).forEach(s => allowed.add(s)));
             const sectionRoute = {
                 "User Management": "/Users","Policy Management": "/Policy","Claim Review": "/Claims/Review",
-                "Raise Ticket": "/Tickets/Create","View Policies": "/Policy/My","Submit Claim": "/Claims/Create",
+                "Raise Ticket": "/support","View Policies": "/Policy/My","Submit Claim": "/Claims/Create",
                 "Client Support": "/Support","Analytics": "#analytics","Claims": "/Claims"
             };
             const sectionIcon = {
