@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Support Tickets</title>
+	<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+	<style>
+		body { background-color: #f8f9fa; }
+		.container { margin-top: 50px; }
+		.card { border-radius: 15px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+		.card-header { background-color: #17a2b8; color: white; border-top-left-radius: 15px; border-top-right-radius: 15px; }
+		.table thead th { background-color: #17a2b8; color: white; }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="card">
+			<div class="card-header d-flex justify-content-between align-items-center">
+				<h2 class="mb-0 text-white">Support Tickets</h2>
+				<button id="createTicketBtn" class="btn btn-light" data-toggle="modal" data-target="#createTicketModal">
+					<i class="fas fa-plus"></i> New Ticket
+				</button>
+			</div>
+			<div class="card-body">
+				<div class="mb-3 d-flex gap-2">
+					<input type="text" id="searchInput" class="form-control" placeholder="Search tickets...">
+				</div>
+				<div class="table-responsive">
+					<table class="table table-striped table-hover" id="ticketsTable">
+						<thead>
+							<tr>
+								<th>ID</th>
+								<th>User</th>
+								<th>Description</th>
+								<th>Status</th>
+								<th>Created</th>
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody></tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Create Ticket Modal -->
+	<div class="modal fade" id="createTicketModal" tabindex="-1" role="dialog" aria-labelledby="createTicketModalLabel" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="createTicketModalLabel">Create Support Ticket</h5>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<form id="createTicketForm">
+						<div class="form-group">
+							<label for="issueDescription">Issue Description</label>
+							<textarea class="form-control" id="issueDescription" rows="4" required></textarea>
+						</div>
+						<button type="submit" class="btn btn-info">Submit Ticket</button>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Update Status Modal (Admins/Agents) -->
+	<div class="modal fade" id="updateStatusModal" tabindex="-1" role="dialog" aria-labelledby="updateStatusModalLabel" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="updateStatusModalLabel">Update Ticket Status</h5>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<form id="updateStatusForm">
+						<input type="hidden" id="statusTicketId" />
+						<div class="form-group">
+							<label for="ticketStatus">Status</label>
+							<select id="ticketStatus" class="form-control" required>
+								<option value="0">OPEN</option>
+								<option value="1">RESOLVED</option>
+							</select>
+						</div>
+						<button type="submit" class="btn btn-info">Update</button>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+	<script>
+		$(function() {
+			const API_BASE_URL = "/api/SupportTicket";
+			let allTickets = [];
+			let token = null;
+			let userIdFromToken = null;
+			let userRoles = [];
+
+			const userDataString = localStorage.getItem('userData');
+			if (userDataString) {
+				try {
+					const userData = JSON.parse(userDataString);
+					token = userData.token;
+					userRoles = userData.roles || [];
+				} catch (e) { console.error("Failed to parse userData", e); }
+			}
+
+			if (!token) {
+				alert("No authentication token found. Please log in.");
+				window.location.href = "/Account/Login";
+				return;
+			}
+
+			// Extract userId from JWT (since login payload doesn't include it)
+			try {
+				const payload = JSON.parse(atob(token.split('.')[1]));
+				userIdFromToken = payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+			} catch (e) {
+				console.warn('Could not parse JWT payload for user id', e);
+			}
+
+			// Fetch tickets depending on role
+			fetchTickets();
+
+			function fetchTickets() {
+				const isAdminOrAgent = userRoles.includes('ADMIN') || userRoles.includes('AGENT');
+				const url = isAdminOrAgent ? `${API_BASE_URL}/all` : `${API_BASE_URL}/user/${userIdFromToken}`;
+				$.ajax({
+					url,
+					type: "GET",
+					headers: { "Authorization": "Bearer " + token },
+					success: function(data) { allTickets = data; renderTickets(allTickets); },
+					error: function(xhr) {
+						if (xhr.status === 401 || xhr.status === 403) {
+							alert("Session expired or unauthorized access. Please log in again.");
+							window.location.href = "/Account/Login";
+						} else {
+							alert("Failed to fetch tickets: " + (xhr.responseJSON?.message || xhr.statusText));
+						}
+					}
+				});
+			}
+
+			function renderTickets(tickets) {
+				const $tbody = $('#ticketsTable tbody');
+				$tbody.empty();
+				if (!tickets || tickets.length === 0) {
+					$tbody.append('<tr><td colspan="6" class="text-center">No tickets found.</td></tr>');
+					return;
+				}
+				tickets.forEach(t => {
+					$tbody.append(`
+						<tr>
+							<td>${t.ticketId}</td>
+							<td>${t.userId}</td>
+							<td>${escapeHtml(t.issueDescription)}</td>
+							<td><span class="badge badge-${getStatusClass(t.ticketStatus)}">${t.ticketStatus}</span></td>
+							<td>${new Date(t.createdDate).toLocaleString()}</td>
+							<td>
+								${(userRoles.includes('ADMIN') || userRoles.includes('AGENT')) ? `<button class="btn btn-sm btn-info update-status-btn" data-id="${t.ticketId}" data-toggle="modal" data-target="#updateStatusModal"><i class="fas fa-edit"></i></button>` : ''}
+							</td>
+						</tr>
+					`);
+				});
+			}
+
+			function getStatusClass(status) {
+				switch ((status || '').toString().toLowerCase()) {
+					case 'open': return 'warning';
+					case 'resolved': return 'success';
+					default: return 'secondary';
+				}
+			}
+
+			$('#createTicketForm').on('submit', function(e) {
+				e.preventDefault();
+				const issueDescription = $('#issueDescription').val();
+				if (!userIdFromToken) {
+					alert('Could not determine logged-in user id.');
+					return;
+				}
+				const payload = { userId: userIdFromToken, issueDescription };
+				$.ajax({
+					url: API_BASE_URL,
+					type: 'POST',
+					contentType: 'application/json',
+					headers: { "Authorization": "Bearer " + token },
+					data: JSON.stringify(payload),
+					success: function() {
+						$('#createTicketModal').modal('hide');
+						$('#issueDescription').val('');
+						alert('Ticket created successfully');
+						fetchTickets();
+					},
+					error: function(xhr) {
+						alert("Failed to create ticket: " + (xhr.responseJSON?.message || xhr.statusText));
+					}
+				});
+			});
+
+			$(document).on('click', '.update-status-btn', function () {
+				const ticketId = $(this).data('id');
+				$('#statusTicketId').val(ticketId);
+			});
+
+			$('#updateStatusForm').on('submit', function(e){
+				e.preventDefault();
+				const id = $('#statusTicketId').val();
+				const statusVal = parseInt($('#ticketStatus').val());
+				$.ajax({
+					url: `${API_BASE_URL}/${id}/status`,
+					type: 'PUT',
+					contentType: 'application/json',
+					headers: { "Authorization": "Bearer " + token },
+					data: JSON.stringify({ ticketStatus: statusVal }),
+					success: function(){
+						$('#updateStatusModal').modal('hide');
+						alert('Status updated');
+						fetchTickets();
+					},
+					error: function(xhr){
+						alert("Failed to update status: " + (xhr.responseJSON?.message || xhr.statusText));
+					}
+				});
+			});
+
+			$('#searchInput').on('keyup', function(){
+				const term = $(this).val().toLowerCase();
+				const filtered = (allTickets || []).filter(t =>
+					(t.ticketId + '').includes(term) ||
+					(t.userId || '').toLowerCase().includes(term) ||
+					(t.ticketStatus || '').toLowerCase().includes(term) ||
+					(t.issueDescription || '').toLowerCase().includes(term)
+				);
+				renderTickets(filtered);
+			});
+
+			function escapeHtml(str){
+				if (str == null) return '';
+				return String(str)
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/"/g, '&quot;')
+					.replace(/'/g, '&#039;');
+			}
+		});
+	</script>
+</body>
+</html>
