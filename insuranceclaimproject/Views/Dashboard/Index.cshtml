@@ -1,0 +1,120 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <!-- KPIs -->
+    @* <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3" data-section="Claims">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-uppercase small text-muted">Claims</div>
+                    <div class="fs-3 fw-semibold" id="kpiClaims">14</div>
+                    <div class="small text-muted">vs previous <span id="kpiClaimsDelta">-62.2%</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3" data-section="Policy Management">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-uppercase small text-muted">Policies</div>
+                    <div class="fs-3 fw-semibold" id="kpiPolicies">9</div>
+                    <div class="small text-muted">vs previous <span id="kpiPoliciesDelta">-40.0%</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3" data-section="Client Support">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-uppercase small text-muted">Open Tickets</div>
+                    <div class="fs-3 fw-semibold">23</div>
+                    <div class="small text-muted">SLA 92%</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3" data-section="Claim Review">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-uppercase small text-muted">Pending Reviews</div>
+                    <div class="fs-3 fw-semibold">8</div>
+                    <div class="small text-muted">Avg Age: 3.2 days</div>
+                </div>
+            </div>
+        </div>
+    </div> *@
+
+    <!-- Analytics -->
+    @* <div id="analytics" class="row g-3">
+        <div class="col-lg-6" data-section="Policy Management">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-semibold">Policy Type</div>
+                <div class="card-body" style="height:260px">
+                    <canvas id="chartPolicyType"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6" data-section="Claim Review">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-semibold">Claim Amount</div>
+                <div class="card-body" style="height:260px">
+                    <canvas id="chartClaimAmount"></canvas>
+                </div>
+            </div>
+        </div>
+    </div> *@
+
+    <!-- Dynamic role cards -->
+    @* <div class="row g-3 mt-4" id="dashboardSections"></div> *@
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+    <script>
+        (function () {
+            // Build quick section cards from same role rules as layout (reads sidebar's 'allowed' outcome if needed)
+            let u = {}; try { u = JSON.parse(localStorage.getItem('userData') || '{}'); } catch {}
+            const roles = Array.isArray(u.roles) ? u.roles : [];
+            const roleMap = {
+                ADMIN: ["User Management","Policy Management","Claim Review","Raise Ticket","Analytics","Claims","Client Support"],
+                USER: ["View Policies","Submit Claim","Raise Ticket","Analytics"],
+                AGENT: ["Policy Management","Client Support","Analytics"],
+                CLAIM_ADJUSTER: ["Claim Review","Client Support","Analytics","Claims"]
+            };
+            const allowed = new Set(); roles.forEach(r => (roleMap[r]||[]).forEach(s => allowed.add(s)));
+            const sectionRoute = {
+                "User Management": "/Users","Policy Management": "/Policy","Claim Review": "/Claims/Review",
+                "Raise Ticket": "/Tickets/Create","View Policies": "/Policy/My","Submit Claim": "/Claims/Create",
+                "Client Support": "/Support","Analytics": "#analytics","Claims": "/Claims"
+            };
+            const sectionIcon = {
+                "User Management":"bi-people","Policy Management":"bi-kanban","Claim Review":"bi-clipboard2-check",
+                "Raise Ticket":"bi-life-preserver","View Policies":"bi-journal-text","Submit Claim":"bi-send",
+                "Client Support":"bi-chat-dots","Analytics":"bi-graph-up","Claims":"bi-ui-checks-grid"
+            };
+            const container = document.getElementById('dashboardSections');
+            allowed.forEach(section=>{
+                const col = document.createElement('div');
+                col.className = 'col-md-4';
+                col.innerHTML = `
+                  <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                      <h5 class="card-title mb-2"><i class="bi ${sectionIcon[section]||'bi-grid'} me-2"></i>${section}</h5>
+                      <p class="card-text text-muted">Access ${section.toLowerCase()} features here.</p>
+                      <a class="btn btn-primary" href="${sectionRoute[section]||'#'}">Go</a>
+                    </div>
+                  </div>`;
+                container.appendChild(col);
+            });
+
+            // Charts
+            const makeBar=(id,labels,label,data)=>new Chart(document.getElementById(id),{
+                type:'bar', data:{labels, datasets:[{label,data}]},
+                options:{responsive:true, maintainAspectRatio:false}
+            });
+            makeBar('chartPolicyType',["Health","Auto","Home","Life","Travel"],"Policies",[120,90,65,150,40]);
+            makeBar('chartClaimAmount',["Q1","Q2","Q3","Q4"],"Amount (k$)",[210,150,260,190]);
+        })();
+    </script>
+}
+
