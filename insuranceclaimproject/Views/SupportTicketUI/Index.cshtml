@@ -123,7 +123,10 @@
 
 			// Extract userId from JWT (since login payload doesn't include it)
 			try {
-				const payload = JSON.parse(atob(token.split('.')[1]));
+				const b64u = token.split('.')[1];
+				const b64 = b64u.replace(/-/g, '+').replace(/_/g, '/');
+				const json = decodeURIComponent(Array.prototype.map.call(atob(b64), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+				const payload = JSON.parse(json);
 				userIdFromToken = payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
 			} catch (e) {
 				console.warn('Could not parse JWT payload for user id', e);

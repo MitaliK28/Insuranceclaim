@@ -1,4 +1,4 @@
-﻿using insuranceclaimproject.Dtos.SupportTicket;
+using insuranceclaimproject.Dtos.SupportTicket;
 using insuranceclaimproject.Interfaces;
 using insuranceclaimproject.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -78,9 +78,17 @@ namespace insuranceclaimproject.Controllers
 
         // GET api/SupportTicket/user/{userId}
         [HttpGet("user/{userId}")]
-        [Authorize(Roles = "ADMIN, AGENT")]
+        [Authorize]
         public async Task<IActionResult> GetTicketsByUser(string userId)
         {
+            var currentUserId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var currentUser = currentUserId != null ? await _userManager.FindByIdAsync(currentUserId) : null;
+            var role = currentUser?.Role;
+            if (currentUserId != userId && role != UserRole.ADMIN && role != UserRole.AGENT)
+            {
+                return Forbid();
+            }
+
             var tickets = await _supportTicketService.GetTicketsByUserAsync(userId);
             if (!tickets.Any())
             {
